@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { isatty } from "tty";
 
 export default function Header() {
   const router = useRouter();
-  const { isLoggedIn, logout } = useAuth();
+  const { isAuthenticated, userName, logout } = useAuth();
 
   const handleLogout = () => {
     logout();
@@ -26,9 +27,9 @@ export default function Header() {
           </div>
 
           <div className="flex items-center">
-            {isLoggedIn ? (
+            {isAuthenticated ? (
               <>
-                <span className="text-gray-700 mr-4">Welcome, User</span>
+                <span className="text-gray-700 mr-4">Welcome, {userName}</span>
                 <button
                   onClick={handleLogout}
                   className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md"

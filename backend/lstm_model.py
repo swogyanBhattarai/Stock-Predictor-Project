@@ -5,7 +5,8 @@ import matplotlib.pyplot as plt
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_squared_error, r2_score
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import LSTM, Dense, Dropout
+from tensorflow.keras.layers import LSTM, Dense, Dropout, Activation
+from tensorflow.keras.callbacks import EarlyStopping
 from sklearn.feature_selection import SelectKBest, f_regression
 from flask import Flask, request, jsonify
 import plotly.graph_objects as go
@@ -66,21 +67,21 @@ def run_prediction_pipeline(filepath):
 
     df = pd.read_csv(filepath)
     df = df.sort_values('BUSINESS DATE')
+    df = estimate_open_prices(df)
 
     global actual_stock, prediction_results, future_forecast, model_accuracy
 
-    recent_rows = df[-5:]  # or adjust number as needed
+    recent_rows = df 
 
     for _, row in recent_rows.iterrows():
         actual_stock.append({
             'date': row['BUSINESS DATE'],
+            'open': row['OPEN PRICE'],
             'high': row['HIGH PRICE'],
             'low': row['LOW PRICE'],
             'close': row['CLOSE PRICE'],
             'volume': row.get('TOTAL TRADED QUANTITY', 0)
         })
-
-    df = estimate_open_prices(df)
 
     features = ['CLOSE PRICE', 'HIGH PRICE', 'LOW PRICE', 'TOTAL TRADED QUANTITY']
     data = df[features].dropna().copy()
@@ -110,14 +111,29 @@ def run_prediction_pipeline(filepath):
     model.add(LSTM(50, return_sequences=False, input_shape=(X.shape[1], X.shape[2])))
     model.add(Dropout(0.4))
     model.add(Dense(3)) 
+    model.add(Activation('relu'))  
     model.compile(optimizer='adam', loss='mean_squared_error')
-    model.fit(X_train, y_train, epochs=150, batch_size=8, validation_data=(X_test, y_test), verbose=0)
+    
+    early_stop = EarlyStopping(
+    monitor='val_loss',
+    patience=20,
+    restore_best_weights=True
+    )
+    
+    model.fit(X_train, y_train, epochs=500, batch_size=8, validation_data=(X_test, y_test), callbacks=[early_stop],verbose=0)
 
     model_filename = filepath.split('/')[-1].replace('.csv', '_model.h5')
     model.save(model_filename)
 
     # Prediction
     predictions = model.predict(X_test)
+    
+    for i, entry in enumerate(actual_stock):
+        if i == 0:
+            entry['open'] = entry['close']  # First open = first close
+        else:
+            entry['open'] = actual_stock[i-1]['close']  # Subsequent opens = previous close
+    
     y_test_inv = inverse_transform_columns(scaler, y_test)
     predictions_inv = inverse_transform_columns(scaler, predictions)
     r2 = r2_score(y_test_inv, predictions_inv)
@@ -177,7 +193,8 @@ def run_prediction_pipeline(filepath):
 
             # Add randomness based on historical volatility
             volatility = np.std(scaled_data[:, 0])
-            pred_scaled += np.random.normal(0, volatility * 0.5, pred_scaled.shape)
+            pred_scaled += np.random.normal(0, volatility * 0.3, pred_scaled.shape)
+            pred_scaled = np.clip(pred_scaled, a_min=0, a_max=None)
 
             pred_actual = inverse_transform_columns(scaler, [pred_scaled])[0]
             sim_preds.append(pred_actual)
@@ -203,15 +220,12 @@ def run_prediction_pipeline(filepath):
     future_df = pd.DataFrame(mean_preds, columns=['CLOSE PRICE', 'HIGH PRICE', 'LOW PRICE'])
     future_df['BUSINESS DATE'] = future_dates
     future_df['OPEN PRICE'] = future_df['CLOSE PRICE'].shift(1)
-    future_df['OPEN PRICE'].iloc[0] = df['CLOSE PRICE'].iloc[-1]
+    future_df.loc[0, 'OPEN PRICE'] = df.loc[df.index[-1], 'CLOSE PRICE']
 
     # Confidence intervals
     paths_array = np.array(all_paths)
     future_df['LOWER_BOUND'] = np.percentile(paths_array[:, :, 0], 10, axis=0)
     future_df['UPPER_BOUND'] = np.percentile(paths_array[:, :, 0], 90, axis=0)
-
-    # Plot future candlestick
-    # plot_candlestick(future_df, f'🧠 Future Prediction - {filepath}', show_confidence=True)
 
     # Save CSV
     future_filename = os.path.basename(filepath)
@@ -221,7 +235,7 @@ def run_prediction_pipeline(filepath):
     print(f"✅ Saved future predictions to: {save_path}")
     
     latest_dataframe = df
-
+    
     # Store future forecast for API access
     future_forecast = []
     for row in future_df.to_dict(orient='records'):

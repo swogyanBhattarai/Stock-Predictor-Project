@@ -1,7 +1,11 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import PlotlyChart from "@/components/PlotlyChart";
+import dynamic from "next/dynamic";
+
+const PlotlyChart = dynamic(() => import("@/components/PlotlyChart"), {
+  ssr: false,
+});
 
 interface CandlestickData {
   date: string;
@@ -21,13 +25,30 @@ export default function CandlestickChart({
   data,
   title,
 }: CandlestickChartProps) {
+  console.log("Candlestick data:", data);
+  console.log("Candlestick data type:", typeof data);
+  const sliceDataNum = 10;
   return (
     <div>
       <h3 className="text-lg font-medium mb-4">{title}</h3>
-
-      {/* Placeholder for chart */}
       <div className="bg-gray-100 p-6 rounded border text-center">
-        <PlotlyChart />
+        <PlotlyChart
+          data={[
+            {
+              x: data.map((d) => d.date),
+              high: data.map((d) => d.high),
+              low: data.map((d) => d.low),
+              open: data.map((d) => d.open),
+              close: data.map((d) => d.close),
+              type: "candlestick",
+            },
+          ]}
+          layout={{
+            title,
+            xaxis: { title: "Date" },
+            yaxis: { title: "Price" },
+          }}
+        />
         {/* <p className="mt-2 text-sm text-gray-400">
           For production, implement using Chart.js, Recharts, or a financial
           chart library
@@ -48,13 +69,15 @@ export default function CandlestickChart({
             </thead>
             <tbody>
               {data &&
-                data.slice(0, 5).map((item, index) => (
+                data.slice(0, sliceDataNum).map((item, index) => (
                   <tr
                     key={index}
                     className={index % 2 === 0 ? "bg-gray-50" : ""}
                   >
                     <td className="py-2 px-4 border-b">{item.date}</td>
-                    <td className="py-2 px-4 border-b">{"N/A"}</td>
+                    <td className="py-2 px-4 border-b">
+                      {item.open.toFixed(2)}
+                    </td>
                     <td className="py-2 px-4 border-b">
                       {item.high.toFixed(2)}
                     </td>
@@ -71,7 +94,7 @@ export default function CandlestickChart({
           </table>
           {data && data.length > 5 && (
             <p className="mt-2 text-sm text-gray-500 text-center">
-              Showing 5 of {data.length} records
+              Showing {sliceDataNum} of {data.length} records
             </p>
           )}
         </div>

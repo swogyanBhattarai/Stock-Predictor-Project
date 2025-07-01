@@ -22,10 +22,24 @@ export default function Register() {
     }
 
     try {
-      // Simulate registration logic
-      console.log("Registering user:", { name, email, password });
+      const res = await fetch("http://localhost:5000/api/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: email,
+          name: name,
+          password: password,
+        }),
+      });
 
-      // Redirect to login page after successful registration
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || "Registration failed");
+        return;
+      }
+
+      // ✅ Success
       router.push("/login");
     } catch (err) {
       setError("Registration failed. Please try again.");

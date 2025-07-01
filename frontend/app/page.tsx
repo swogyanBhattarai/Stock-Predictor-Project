@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useAuth } from "@/context/AuthContext"; // adjust path as needed
 
 export default function Home() {
-  const { isLoggedIn } = useAuth();
+  const { isAuthenticated } = useAuth();
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[80vh] text-center">
@@ -16,7 +16,7 @@ export default function Home() {
         your stock portfolio easily.
       </p>
 
-      {!isLoggedIn ? (
+      {!isAuthenticated ? (
         <div className="flex gap-4">
           <Link
             href="/login"
@@ -33,12 +33,12 @@ export default function Home() {
         </div>
       ) : (
         <div>
-          <Link
+          {/* <Link
             href="/portfolio"
             className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 m-5 rounded-md font-medium"
           >
             Go to Portfolio
-          </Link>
+          </Link> */}
           <Link
             href="/dashboard"
             className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 m-5 rounded-md font-medium"

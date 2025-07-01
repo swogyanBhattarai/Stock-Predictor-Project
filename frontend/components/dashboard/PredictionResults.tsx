@@ -1,5 +1,7 @@
 "use client";
 
+import CandlestickChart from "@/components/dashboard/CandlestickChart";
+
 interface Prediction {
   date: string;
   close: number;
@@ -23,9 +25,7 @@ export default function PredictionResults({
         <div>
           <h3 className="text-lg font-medium mb-4">Future Predictions</h3>
           <div className="bg-gray-100 p-6 rounded border text-center">
-            <p className="text-gray-500">
-              [Prediction visualization would be implemented here]
-            </p>
+            <p className="text-gray-500"></p>
 
             <div className="mt-4">
               <table className="min-w-full bg-white">
